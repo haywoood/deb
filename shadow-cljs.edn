@@ -1,0 +1,16 @@
+{:deps true
+ :builds
+ {:app {:target :browser
+        :modules {:main {:entries [deb.core]}}
+        :dev {:output-dir "resources/public/js/compiled/dev"
+              :asset-path "http://localhost:3449/js/compiled/dev"}
+        :devtools {:http-root "resources/public"
+                   :http-host "localhost"
+                   :http-port 3449}}
+
+  :test {:target     :browser-test
+         :test-dir   "out/test"
+         :devtools   {:http-port 8606
+                      :http-root "out/test"}
+         :js-options {:resolve {"object.assign" {:target  :npm
+                                                    :require "object-assign"}}}}}}
