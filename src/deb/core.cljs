@@ -1,25 +1,40 @@
 (ns deb.core
-  (:require [debux.cs.core :as d :refer-macros [dbg dbgn clog clogn clog clogn break]]))
+  (:require-macros [cljs.core.async.macros :refer [go-loop]])
+  (:require [debux.cs.core :as d :refer-macros [dbg dbgn clog clogn clog clogn break]]
+            [artemis.core :as a]
+            [artemis.document :as dd]
+            [artemis.stores.mapgraph.core :as mgs]
+            [artemis.network-steps.http :as http]))
 
-(defn update-phase [phases {:keys [draggableId source destination]}]
- (let [dest-index   (:index destination)
-       source-index (:index source)
-       phase-text   draggableId]
-   (mapv (clogn (fn [{:keys [text index]
-                      :as   phase}]
-                  (if (= phase-text text)
-                    (assoc phase :index dest-index)
-                    (if (= index dest-index)
-                      (assoc phase :index source-index)
-                      phase))))
-         phases)))
+(def client (a/create-client :store         (mgs/create-store :id-attrs #{:File/id})
+                             :network-chain (http/create-network-step "https://api.graph.cool/simple/v1/cj3xmuos7p3ns0104k9clzkep")))
 
-(let [phases [{:index 0 :text "Paint walls"}
-              {:index 1 :text "Get sink"}
-              {:index 2 :text "Fix heater"}]
-      event {:draggableId "Fix heater"
-             :type        "DEFAULT"
-             :source      {:droppableId "fudge" :index 2}
-             :destination {:droppableId "fudge" :index 1}
-             :reason      "DROP"}]
-  (update-phase phases event))
+(def file-fragment
+  (dd/parse-document
+   "fragment fileFrag on File {
+     __typename
+     name
+     url
+     id
+   }"))
+
+(def query
+ (dd/parse-document
+  "query ok {
+    allFiles {
+      ...fileFrag
+    }
+  }"))
+
+(let [q-chan (a/query! client (clog (dd/compose query file-fragment)) {} :fetch-policy :local-then-remote)]
+  (go-loop []
+    (when-let [result (<! q-chan)]
+      (clog (a/store client)))))
+
+(a/store client)
+
+(comment
+  (in-ns 'shadow.user)
+  (def mapgraph-store (mgs/create-store :id-attrs #{:File/id}))
+  (def network-chain (http/create-network-step "https://api.graph.cool/simple/v1/cj3xmuos7p3ns0104k9clzkep"))
+  (shadow/nrepl-select :app))

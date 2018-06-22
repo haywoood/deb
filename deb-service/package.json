@@ -1,0 +1,8 @@
+{
+  "name": "deb-service",
+  "version": "1.0.0",
+  "description": "My Graphcool Service",
+  "dependencies": {
+    "graphql-request": "^1.6.0"
+  }
+}
